@@ -210,12 +210,12 @@ function Product({
           {isTheProductInTheCart === true ? (
             <>
               <img
-                src={`${
+                src={`./assets/images/${
                   mouseOverDecrement
-                    ? "./assets/images/icon-decrement-quantity-red.svg"
-                    : "./assets/images/icon-decrement-quantity.svg"
+                    ? "icon-decrement-quantity-red.svg"
+                    : "icon-decrement-quantity.svg"
                 }`}
-                alt="increase a product quantity"
+                alt="decrease a product quantity"
                 className="product__quantity-change-element product__quantity-decrement"
                 onClick={function () {
                   handleDecreaseQuantity();
@@ -263,7 +263,10 @@ function Product({
             </>
           ) : (
             <>
-              <img src="./assets/images/icon-add-to-cart.svg" />
+              <img
+                src="./assets/images/icon-add-to-cart.svg"
+                alt="add a product to the cart"
+              />
               Add to Cart
             </>
           )}
@@ -447,6 +450,7 @@ function CartItem({
         className={`cart-item__img  ${
           actionInsideTheButton === "Start New Order" ? "" : "hidden"
         }`}
+        alt="an image of the product in the cart"
       />
 
       {/* cart items list information */}
