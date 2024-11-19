@@ -25,18 +25,43 @@ function App() {
     });
   };
 
+  const handleRemoveProductItemFromTheList = function (ItemToBeRemoved) {
+    const indexOfItemToBeRemoved = addToTheCartList.findIndex(
+      (productInTheCart) => productInTheCart.name === ItemToBeRemoved.name
+    );
+
+    setAddToTheCartList(
+      addToTheCartList.filter((_, i) => i !== indexOfItemToBeRemoved)
+    );
+  };
+
   return (
     <div className="app">
       <Header />
 
       <main className="main">
-        <ProductList onAddToTheCartList={handleAddedToCartList} />
-        <Cart />
+        <ProductList
+          onAddToTheCartList={handleAddedToCartList}
+          productItemInTheCart={addToTheCartList}
+          onRemoveProductItemFromTheList={handleRemoveProductItemFromTheList}
+        />
+        <Cart
+          addToTheCartList={addToTheCartList}
+          onRemoveProductItemFromTheList={handleRemoveProductItemFromTheList}
+        />
       </main>
 
       <Footer />
     </div>
   );
+}
+
+//a function which changes number to usd dollar format
+function numberToCurrencyConverter(number) {
+  return new Intl.NumberFormat("en-Us", {
+    style: "currency",
+    currency: "USD",
+  }).format(number);
 }
 
 function Header() {
@@ -47,7 +72,11 @@ function Header() {
   );
 }
 
-function ProductList({ onAddToTheCartList }) {
+function ProductList({
+  onAddToTheCartList,
+  productItemInTheCart,
+  onRemoveProductItemFromTheList,
+}) {
   const [productList, setProductList] = useState([]);
 
   async function fetchData() {
@@ -69,13 +98,15 @@ function ProductList({ onAddToTheCartList }) {
   return (
     <>
       {productList && (
-        <ul>
+        <ul className="product-list">
           {productList.map((el, i) => {
             return (
               <Product
                 product={el}
                 onAddToTheCartList={onAddToTheCartList}
+                onRemoveProductItemFromTheList={onRemoveProductItemFromTheList}
                 key={productList[i]["name"]}
+                productItemInTheCart={productItemInTheCart}
               />
             );
           })}
@@ -85,91 +116,149 @@ function ProductList({ onAddToTheCartList }) {
   );
 }
 
-function Product({ product, onAddToTheCartList }) {
-  const [selectedProduct, setSelectedProduct] = useState(false);
-  const [productInTheCartInfo, setProductInTheCartInfo] = useState({});
+function Product({
+  product,
+  onAddToTheCartList,
+  onRemoveProductItemFromTheList,
+  productItemInTheCart,
+}) {
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [mouseOverDecrement, setMouseOverDecrement] = useState(false);
+  const [mouseOverIncrement, setMouseOverIncrement] = useState(false);
+
+  useEffect(function () {
+    const handleResize = function () {
+      setWindowWidth(window.innerWidth);
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
 
   const [quantity, setQuantity] = useState(0);
 
+  const isTheProductInTheCart = productItemInTheCart.find(
+    (productInTheCart) => productInTheCart.name === product.name
+  )
+    ? true
+    : false;
+
   const handleSelectedProduct = function (e) {
-    console.log("affected");
-
-    if (!selectedProduct) {
-      setSelectedProduct(true);
+    if (!isTheProductInTheCart) {
       setQuantity(1);
-
-      onAddToTheCartList({
-        image: product["image"]?.mobile,
-        quantity: 1,
-        name: product["name"],
-        price: product["price"],
-        totalPrice: 1 * product["price"],
-      });
     }
   };
 
   const handleIncreaseQuantity = function (e) {
     setQuantity((quantity) => {
-      onAddToTheCartList({
-        image: product["image"]?.mobile,
-        quantity: quantity + 1,
-        name: product["name"],
-        price: product["price"],
-        totalPrice: quantity * product["price"],
-      });
-
       return quantity + 1;
     });
   };
 
   const handleDecreaseQuantity = function (e) {
     setQuantity((quantity) => {
-      onAddToTheCartList({
-        image: product["image"]?.mobile,
-        quantity: Math.max(1, quantity - 1),
-        name: product["name"],
-        price: product["price"],
-        totalPrice: quantity * product["price"],
-      });
       return Math.max(1, quantity - 1);
     });
   };
 
-  //when the add to the cart list is clciked it will add a product to the list
+  const returnImageBasedOnScreenSize = function () {
+    let imageSrc;
+
+    if (windowWidth < 950) {
+      imageSrc = product["image"]?.mobile;
+    } else if (windowWidth >= 950 && windowWidth < 1440) {
+      imageSrc = product["image"]?.tablet;
+    } else if (windowWidth >= 1440) {
+      imageSrc = product["image"]?.desktop;
+    }
+
+    return imageSrc;
+  };
 
   return (
     <li className="product">
       <div className="product__img-container">
         <img
-          src={product["image"]?.mobile}
+          src={returnImageBasedOnScreenSize()}
           className={`product__image ${
-            selectedProduct ? "product--added-to-a-cart" : ""
+            isTheProductInTheCart ? "product--added-to-a-cart" : ""
           }`}
           alt={product["name"]}
         />
 
         <Button
           className={`product__btn ${
-            selectedProduct ? "product__btn--selected" : ""
+            isTheProductInTheCart ? "product__btn--selected" : ""
           }`}
-          onClick={handleSelectedProduct}
+          onClick={() => {
+            handleSelectedProduct();
+
+            if (!isTheProductInTheCart)
+              onAddToTheCartList({
+                image: product["image"]?.mobile,
+                quantity: 1,
+                name: product["name"],
+                price: product["price"],
+                totalPrice: 1 * product["price"],
+                addedToTheCart: true,
+              });
+          }}
         >
-          {selectedProduct === true ? (
+          {isTheProductInTheCart === true ? (
             <>
               <img
-                src="./assets/images/icon-decrement-quantity.svg"
+                src={`${
+                  mouseOverDecrement
+                    ? "./assets/images/icon-decrement-quantity-red.svg"
+                    : "./assets/images/icon-decrement-quantity.svg"
+                }`}
                 alt="increase a product quantity"
                 className="product__quantity-change-element product__quantity-decrement"
-                onClick={handleDecreaseQuantity}
+                onClick={function () {
+                  handleDecreaseQuantity();
+                  if (quantity === 1 && isTheProductInTheCart) {
+                    setMouseOverDecrement(false);
+                    onRemoveProductItemFromTheList(product);
+                    return;
+                  }
+
+                  onAddToTheCartList({
+                    image: product["image"]?.mobile,
+                    quantity: Math.max(1, quantity - 1),
+                    name: product["name"],
+                    price: product["price"],
+                    totalPrice: Math.max(1, quantity - 1) * product["price"],
+                  });
+                }}
+                onMouseEnter={() => setMouseOverDecrement(true)}
+                onMouseLeave={() => setMouseOverDecrement(false)}
               />
 
               <span className="product__quantity">{quantity}</span>
 
               <img
-                src="./assets/images/icon-increment-quantity.svg"
+                src={`./assets/images/${
+                  mouseOverIncrement
+                    ? "icon-increment-quantity-red.svg"
+                    : "icon-increment-quantity.svg"
+                }`}
                 alt="increase a product quantity"
                 className="product__quantity-increment product__quantity-change-element"
-                onClick={handleIncreaseQuantity}
+                onClick={function () {
+                  handleIncreaseQuantity();
+                  onAddToTheCartList({
+                    image: product["image"]?.mobile,
+                    quantity: quantity + 1,
+                    name: product["name"],
+                    price: product["price"],
+                    totalPrice: (quantity + 1) * product["price"],
+                  });
+                }}
+                onMouseEnter={() => setMouseOverIncrement(true)}
+                onMouseLeave={() => setMouseOverIncrement(false)}
               />
             </>
           ) : (
@@ -185,10 +274,7 @@ function Product({ product, onAddToTheCartList }) {
 
       <h3 className="product__name">{product["name"]}</h3>
       <p className="product__price">
-        {new Intl.NumberFormat("en-Us", {
-          style: "currency",
-          currency: "USD",
-        }).format(product["price"])}
+        {numberToCurrencyConverter(product["price"])}
       </p>
     </li>
   );
@@ -202,152 +288,223 @@ function Button({ className, children, onClick }) {
   );
 }
 
-function Cart() {
+function Cart({ addToTheCartList, onRemoveProductItemFromTheList }) {
+  const noOfProductItemInTheCart = addToTheCartList.reduce(function (
+    accumulator,
+    curProduct
+  ) {
+    return accumulator + curProduct["quantity"];
+  },
+  0);
+
+  const [actionInsideTheButton, setActionInsideTheButton] =
+    useState("Confirm Order");
+
+  const handleConfirmOrder = function () {
+    setActionInsideTheButton((prevAction) =>
+      prevAction === "Confirm Order" ? "Start New Order" : "Confirm Order"
+    );
+  };
+
   return (
-    <div className="cart">
-      <h2 className="cart__name ">Your Cart ()</h2>
+    <div
+      className={`container ${
+        actionInsideTheButton === "Start New Order"
+          ? "container-order-confirmed"
+          : ""
+      }`}
+    >
+      <div
+        className={`cart ${
+          actionInsideTheButton === "Start New Order"
+            ? "cart--order-confirmed"
+            : ""
+        }`}
+      >
+        <h2
+          className={`cart__name ${
+            noOfProductItemInTheCart > 0 &&
+            actionInsideTheButton === "Start New Order" &&
+            "hidden"
+          }`}
+        >
+          Your Cart ({noOfProductItemInTheCart})
+        </h2>
 
-      <div className="cart__order-confirmed hidden">
-        <img src="./assets/images/icon-order-confirmed.svg" />
+        <div
+          className={`cart__order-confirmed ${
+            actionInsideTheButton === "Start New Order" ? "" : "hidden"
+          }`}
+        >
+          <img src="./assets/images/icon-order-confirmed.svg" />
 
-        <h3 className="cart__order-confirmed-title">Order Confirmed</h3>
+          <h3 className="cart__order-confirmed-title">Order Confirmed</h3>
 
-        <p className="cart__order-confirmed-message">
-          We hope you enjoy your food!
-        </p>
-      </div>
-
-      {/* empy cart */}
-      <img
-        src="./assets/images/illustration-empty-cart.svg"
-        className="cart__img hidden"
-      />
-
-      <p className="cart__message hidden">Your added items will appear here</p>
-
-      {/* When user Selected some item from the product list */}
-      {/* cart container */}
-      <div className="cart__container ">
-        <ul className="cart__items-list">
-          {/* cart item */}
-          <li className="cart-item">
-            <img
-              src="./assets/images/image-tiramisu-mobile.jpg"
-              className="cart-item__img"
-            />
-
-            {/* cart items list information */}
-            <div className="cart-item__items-list-info">
-              <h3 className="cart-item__name">Classic Tiramisu</h3>
-
-              <div className="cart-item__numbers">
-                <p className="cart-item__quantity">1x</p>
-
-                <div className="cart-item__price-cotainer">
-                  @<p className="cart-item__price">$5.50</p>
-                </div>
-
-                <p className="cart-item__total-price">$5.50</p>
-              </div>
-            </div>
-
-            {/* remove item from the cart button */}
-            <img
-              className="cart-item__remove-btn"
-              src="./assets/images/icon-remove-item.svg"
-            />
-          </li>
-
-          {/* cart item */}
-          <li className="cart-item">
-            <img
-              src="./assets/images/image-creme-brulee-mobile.jpg"
-              className="cart-item__img"
-            />
-
-            {/* cart items list information */}
-            <div className="cart-item__items-list-info">
-              <h3 className="cart-item__name">Vanila Bean Creme Brulee</h3>
-
-              <div className="cart-item__numbers">
-                <p className="cart-item__quantity">4x</p>
-
-                <div className="cart-item__price-cotainer">
-                  @<p className="cart-item__price">$7.00</p>
-                </div>
-
-                <p className="cart-item__total-price">$28.00</p>
-              </div>
-            </div>
-
-            {/* remove item from the cart button */}
-            <img
-              className="cart-item__remove-btn"
-              src="./assets/images/icon-remove-item.svg"
-            />
-          </li>
-
-          {/* cart item 
-          {
-          cart-item__img: margin-right: 0.9rem;
-          }
-          */}
-          <li className="cart-item">
-            <img
-              src="./assets/images/image-panna-cotta-mobile.jpg"
-              className="cart-item__img"
-            />
-
-            {/* cart items list information */}
-            <div className="cart-item__items-list-info">
-              <h3 className="cart-item__name">Vanila Panna Cotta</h3>
-
-              <div className="cart-item__numbers">
-                <p className="cart-item__quantity">2x</p>
-
-                <div className="cart-item__price-cotainer">
-                  @<p className="cart-item__price">$6.50</p>
-                </div>
-
-                <p className="cart-item__total-price">$13.00</p>
-              </div>
-            </div>
-
-            {/* remove item from the cart button */}
-            <img
-              className="cart-item__remove-btn"
-              src="./assets/images/icon-remove-item.svg"
-            />
-          </li>
-        </ul>
-
-        <div className="cart__total-price-section">
-          <p className="cart__total-price-title">Order Total</p>
-          <p className="cart__total-price">$46.50</p>
+          <p className="cart__order-confirmed-message">
+            We hope you enjoy your food!
+          </p>
         </div>
-      </div>
 
-      <div className="cart__delivery-info">
-        <img src="./assets/images/icon-carbon-neutral.svg" />
+        {/* empy cart */}
+        <img
+          src="./assets/images/illustration-empty-cart.svg"
+          className={`cart__img ${
+            noOfProductItemInTheCart === 0 ? "" : "hidden"
+          } `}
+        />
 
-        <p>
-          This is a{" "}
-          <em className="font-style-normal font--ff-Red-Hat-semibold">
-            carbon-neutral
-          </em>{" "}
-          delivery
+        <p
+          className={`cart__message ${
+            noOfProductItemInTheCart === 0 ? "" : "hidden"
+          } `}
+        >
+          Your added items will appear here
         </p>
-      </div>
 
-      <Button className="cart__btn cart__confirm-btn">Confirm Order</Button>
+        {/* When user Selected some item from the product list */}
+        {/* cart container */}
+        <div
+          className={`cart__container ${
+            actionInsideTheButton === "Start New Order" ? "order-confirmed" : ""
+          }`}
+        >
+          <ul className="cart__items-list">
+            {addToTheCartList?.map((product) => (
+              <CartItem
+                actionInsideTheButton={actionInsideTheButton}
+                key={product["name"]}
+                product={product}
+                onRemoveProductItemFromTheList={onRemoveProductItemFromTheList}
+              />
+            ))}
+          </ul>
+
+          <div
+            className={`cart__total-price-section ${
+              noOfProductItemInTheCart === 0 ? "hidden" : ""
+            } `}
+          >
+            <p className="cart__total-price-title">Order Total</p>
+            <p className="cart__total-price">
+              {numberToCurrencyConverter(
+                addToTheCartList?.reduce(
+                  (accumulator, product) => accumulator + product["totalPrice"],
+                  0
+                )
+              )}
+            </p>
+          </div>
+        </div>
+
+        <div
+          className={`cart__delivery-info ${
+            noOfProductItemInTheCart === 0
+              ? "hidden"
+              : "" || actionInsideTheButton === "Start New Order"
+              ? "hidden"
+              : ""
+          } `}
+        >
+          <img src="./assets/images/icon-carbon-neutral.svg" />
+
+          <p>
+            This is a{" "}
+            <em className="font-style-normal font--ff-Red-Hat-semibold">
+              carbon-neutral
+            </em>{" "}
+            delivery
+          </p>
+        </div>
+
+        <>
+          {noOfProductItemInTheCart > 0 ? (
+            <Button
+              onClick={handleConfirmOrder}
+              className="cart__btn cart__confirm-btn"
+            >
+              {actionInsideTheButton}
+            </Button>
+          ) : (
+            ""
+          )}
+        </>
+      </div>
     </div>
   );
 }
 
-function CartItem() {
+function CartItem({
+  product,
+  onRemoveProductItemFromTheList,
+  actionInsideTheButton,
+}) {
+  const [mouseOverRemoveBtn, setMouseOverRemoveBtn] = useState(false);
+
   return (
-    <li>
-      <p></p>
+    <li className="cart-item">
+      <img
+        src={`${product["image"]}`}
+        className={`cart-item__img  ${
+          actionInsideTheButton === "Start New Order" ? "" : "hidden"
+        }`}
+      />
+
+      {/* cart items list information */}
+      <div className="cart-item__items-list-info">
+        <h3
+          className={`cart-item__name ${
+            actionInsideTheButton === "Start New Order"
+              ? "cart-item__name--order-confirmed"
+              : ""
+          }`}
+        >
+          {product["name"]}
+        </h3>
+
+        <div className="cart-item__numbers">
+          <p className="cart-item__quantity">{product["quantity"]}x</p>
+
+          <div className="cart-item__price-cotainer">
+            @
+            <p className="cart-item__price">
+              {numberToCurrencyConverter(product["price"])}
+            </p>
+          </div>
+
+          <p
+            className={`cart-item__total-price ${
+              actionInsideTheButton === "Confirm Order" ? "" : "hidden"
+            }`}
+          >
+            {numberToCurrencyConverter(product["totalPrice"])}
+          </p>
+        </div>
+      </div>
+
+      <p
+        className={`cart-item__total-price ${
+          actionInsideTheButton === "Start New Order"
+            ? "cart-item__total-price--order-confirmed"
+            : "hidden"
+        }`}
+      >
+        {numberToCurrencyConverter(product["totalPrice"])}
+      </p>
+
+      {/* remove item from the cart button */}
+      <img
+        className={`cart-item__remove-btn ${
+          actionInsideTheButton === "Start New Order" ? "hidden" : ""
+        }`}
+        src={`./assets/images/${
+          mouseOverRemoveBtn
+            ? "icon-remove-item-black.svg"
+            : "icon-remove-item.svg"
+        }`}
+        onClick={() => onRemoveProductItemFromTheList(product)}
+        onMouseEnter={() => setMouseOverRemoveBtn(true)}
+        onMouseLeave={() => setMouseOverRemoveBtn(false)}
+      />
     </li>
   );
 }
