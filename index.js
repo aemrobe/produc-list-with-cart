@@ -354,6 +354,7 @@ function Cart({ addToTheCartList, onRemoveProductItemFromTheList }) {
           className={`cart__img ${
             noOfProductItemInTheCart === 0 ? "" : "hidden"
           } `}
+         alt =""
         />
 
         <p
